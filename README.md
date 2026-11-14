@@ -20,28 +20,12 @@ Your personal chess coach. Enter a Chess.com username → loads your public game
 - **Weekly Plan v2**: Maximum 3 actionable improvement recommendations linking directly to tailored practice modes.
 - **Rating Progression Chart**: Lightweight responsive SVG rating trends across Rapid, Blitz, Bullet, and Daily time controls.
 
-### 3. Practice & Tactical Puzzles
-- **Blunder Puzzles**: Automatically generates interactive tactical puzzles from your own game blunders (ordered unsolved-first and highest-eval-loss first).
-- **Spaced Repetition System**: SuperMemo-based revision algorithm tracking attempts, successes, intervals, and mastery (Due Today, Learning, Mastered).
-- **Lichess Tactics**: Direct integration with Lichess public puzzle API with fallback to bundled `public/puzzles.json`.
-- **Interactive Chessground**: Move checking, piece hints, solutions, and consecutive solve streak tracking.
-
-### 4. Interactive Lessons & Endgame Trainer
-- **11 Curriculum Categories**:
-  1. Opening principles
-  2. Piece development
-  3. Center control
-  4. King safety
-  5. Tactical awareness
-  6. Positional understanding
-  7. Pawn structures
-  8. Calculation techniques
-  9. Endgame fundamentals
-  10. Checkmate patterns
-  11. Time management
-- **Personalized Weakness Lessons**: Recommends targeted lessons based on recurring review blunders (e.g. "Stop Hanging Pieces").
-- **Dedicated Endgame Trainer**: Interactive drills for Opposition, Pawn Promotion, King & Rook box checkmate, and King & Queen mating technique.
-- **Completion Tracking**: Persistent progress saved in `localStorage`.
+### 3. Unified Practice & Tactical Puzzles
+- **Randomized Training Queue**: Merges blunder puzzles from your own games, endgame drills, and tactical challenges into a single, seamless, randomized queue.
+- **"From Your Game" Blunder Marker**: Positions generated from your own reviews are prominently badged with `🚨 From Your Game`, showing the opponent, the move you originally played, and the evaluation loss.
+- **Endgame & Core Technique**: Integrated endgame technique drills (Opposition, Pawn Promotion, King & Rook box mate, King & Queen mate) alongside tactical positions.
+- **Interactive Move Freedom**: Play any legal chess move on your side with standard legal move dots and capture rings. If you make a mistake, the move remains on the board with an instant "↺ Try Again" button to learn through experimentation.
+- **Spaced Repetition & Streak Tracking**: Tracks consecutive correct answers and saves completion history in `localStorage`.
 
 ### 5. Opening Lab & Personal Repertoire
 - **Repertoire Breakdown**: Separate White and Black repertoires showing games count, win/loss/draw %, accuracy, and blunder frequency.

@@ -9,7 +9,6 @@ import { leaksHtml } from './pages/leaks.js';
 // Heavy pages are lazy-loaded on first visit so the initial JS parse is smaller.
 // Each function returns the mount function only when the page is actually opened.
 const lazyPuzzles  = () => import('./pages/puzzles.js').then((m) => m.mountPuzzles);
-const lazyLessons  = () => import('./pages/lessons.js').then((m) => m.mountLessons);
 const lazyOpenings = () => import('./pages/openings.js').then((m) => m.mountOpenings);
 const lazyProgress = () => import('./pages/progress.js').then((m) => m.mountProgress);
 import { computeChessIntelligence, renderDailyTrainingSession } from './pages/intel.js';
@@ -42,7 +41,6 @@ function shell(active) {
     ['#/games', '♟', 'Games'],
     ['#/leaks', '📊', 'My Leaks'],
     ['#/puzzles', '🧩', 'Puzzles'],
-    ['#/lessons', '🎓', 'Lessons'],
     ['#/openings', '📖', 'Opening Lab'],
     ['#/progress', '📈', 'Progress'],
   ];
@@ -390,12 +388,6 @@ async function pagePuzzles() {
   mount(main, S);
 }
 
-async function pageLessons() {
-  const main = shell('#/lessons');
-  const mount = await lazyLessons();
-  mount(main, S);
-}
-
 async function pageOpenings() {
   const main = shell('#/openings');
   const mount = await lazyOpenings();
@@ -419,8 +411,7 @@ function render() {
   if (h === '#/games') pageGames();
   else if (h === '#/review') pageReview();
   else if (h === '#/leaks') pageLeaks();
-  else if (h === '#/puzzles') pagePuzzles();
-  else if (h === '#/lessons') pageLessons();
+  else if (h === '#/puzzles' || h === '#/lessons') pagePuzzles();
   else if (h === '#/openings') pageOpenings();
   else if (h === '#/progress') pageProgress();
   else pageHome();

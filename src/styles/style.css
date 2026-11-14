@@ -513,6 +513,54 @@ button.oprow:hover { background: var(--card2); }
 }
 
 /* ---------- puzzles & play styling ---------- */
+.blunder-badge-card {
+  background: rgba(250, 65, 45, 0.12);
+  border: 1px solid rgba(250, 65, 45, 0.35);
+  border-left: 4px solid var(--red);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 10px;
+}
+.puzzle-info-box {
+  background: var(--card);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 10px;
+}
+.marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+.marker.blunder-marker {
+  background: var(--red);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(250, 65, 45, 0.4);
+}
+.marker.tactic-marker {
+  background: #3d3b38;
+  color: #4da6ff;
+  border: 1px solid rgba(77, 166, 255, 0.3);
+}
+.marker.concept-marker {
+  background: #3d3b38;
+  color: var(--gold);
+  border: 1px solid rgba(247, 198, 49, 0.3);
+}
+.puzzle-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 12px;
+}
 .promo-picker {
   position: absolute;
   inset: 0;

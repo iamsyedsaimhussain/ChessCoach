@@ -98,9 +98,9 @@ export function computeChessIntelligence(games = []) {
       name: 'Unprovoked Tactical Blunders',
       stat: `Averaging ${(totalBlunders / reviewed.length).toFixed(1)} blunders per game`,
       affectedGames: reviewed.filter((g) => saved[g.id].summary.counts[g.color].blunder > 0).length,
-      activity: 'Always perform a two-second safety check before committing your move.',
-      buttonText: 'Stop Hanging Pieces',
-      targetHash: `#/lessons`,
+      activity: 'Solve tactical puzzles and calculate checks, captures, and threats.',
+      buttonText: 'Solve Puzzles',
+      targetHash: `#/puzzles`,
     });
   } else {
     weaknesses.push({
@@ -166,10 +166,10 @@ export function renderDailyTrainingSession() {
     },
     {
       id: 'task_daily_lesson',
-      title: 'Targeted Skill Lesson',
-      desc: 'Master the "Stop Hanging Pieces" and piece-safety technique',
-      href: '#/lessons',
-      btn: 'Study Lesson',
+      title: 'Tactical Puzzle Drill',
+      desc: 'Solve tactical positions and calculate forcing moves in Puzzles',
+      href: '#/puzzles',
+      btn: 'Solve Puzzles',
     },
     {
       id: 'task_repertoire',
