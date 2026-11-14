@@ -11,12 +11,16 @@ let currentPuzzleIndex = 0;
 let currentLichessPuzzle = null;
 let currentLichessPly = 0;
 let cg = null;
+let currentChess = null;
+let puzzleStartingFen = '';
+let isMoveAttempted = false;
+let isSolved = false;
 let hintShown = false;
 let answerShown = false;
 let statusMessage = '';
 let statusType = ''; // 'success' | 'error' | 'info' | ''
 
-// Get legal moves dictionary for Chessground
+// Get legal moves dictionary for Chessground (maps orig -> [dest1, dest2, ...])
 function toDests(chess) {
   const dests = new Map();
   chess.moves({ verbose: true }).forEach((m) => {
@@ -63,10 +67,13 @@ export function mountPuzzles(main, S) {
           <div class="board-wrap">
             <div id="board"></div>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
-            <div id="status-bar" class="status-msg ${statusType}">${statusMessage || 'Find the best move'}</div>
-            <div class="streak-badge" title="Consecutive correct answers">
-              🔥 Streak: <b>${pState.streak}</b> <span class="muted small">(Best: ${pState.bestStreak})</span>
+          <div class="puzzle-status-row" style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px;flex-wrap:wrap;">
+            <div id="status-bar" class="status-msg ${statusType}">${statusMessage || 'Find the winning move'}</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button class="btn small" id="retry-btn-inline" data-act="retry" style="display:${isMoveAttempted && !isSolved ? 'inline-block' : 'none'};padding:4px 10px;font-size:12px;">↺ Try Again</button>
+              <div class="streak-badge" title="Consecutive correct answers">
+                🔥 Streak: <b>${pState.streak}</b> <span class="muted small">(Best: ${pState.bestStreak})</span>
+              </div>
             </div>
           </div>
         </div>
@@ -77,10 +84,11 @@ export function mountPuzzles(main, S) {
           </div>
           <div class="card pad" style="margin-top:12px;">
             <div class="ctitle">Actions</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <button class="btn ghost small" data-act="hint" ${hintShown || answerShown ? 'disabled' : ''}>💡 Hint</button>
-              <button class="btn ghost small" data-act="answer" ${answerShown ? 'disabled' : ''}>👁 Show Answer</button>
-              <button class="btn small" data-act="next">Next Puzzle ⏭</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <button class="btn small" id="retry-btn-actions" data-act="retry" style="display:${isMoveAttempted && !isSolved ? 'inline-block' : 'none'};">↺ Try Again</button>
+              <button class="btn ghost small" data-act="hint" ${hintShown || answerShown || isSolved ? 'disabled' : ''}>💡 Hint</button>
+              <button class="btn ghost small" data-act="answer" ${answerShown || isSolved ? 'disabled' : ''}>👁 Show Answer</button>
+              <button class="btn ${isSolved ? '' : 'ghost'} small" data-act="next">Next Puzzle ⏭</button>
             </div>
           </div>
         </div>
@@ -139,34 +147,43 @@ export function mountPuzzles(main, S) {
 
     let fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     let turnColor = 'white';
-    let bestMoveUci = '';
 
     if (activeTab === 'lichess') {
       if (!currentLichessPuzzle) return;
       fen = currentLichessPuzzle.fen;
       turnColor = fen.split(' ')[1] === 'w' ? 'white' : 'black';
-      bestMoveUci = currentLichessPuzzle.solution ? currentLichessPuzzle.solution[currentLichessPly] : '';
     } else {
       const p = blunders[currentPuzzleIndex];
       if (!p) return;
       fen = p.fen;
       turnColor = fen.split(' ')[1] === 'w' ? 'white' : 'black';
-      bestMoveUci = p.best;
     }
 
-    const chess = new Chess(fen);
-    const dests = toDests(chess);
+    puzzleStartingFen = fen;
+    currentChess = new Chess(fen);
+    isMoveAttempted = false;
+    isSolved = false;
+
+    renderInteractiveBoard(turnColor);
+  }
+
+  function renderInteractiveBoard(turnColor) {
+    const el = $('#board');
+    if (!el || !currentChess) return;
+
+    const dests = toDests(currentChess);
 
     cg = Chessground(el, {
-      fen,
+      fen: currentChess.fen(),
       orientation: turnColor,
       turnColor,
       movable: {
         free: false,
         color: turnColor,
         dests,
+        showDests: true, // Display legal move dots and capture rings
         events: {
-          after: (orig, dest) => handleUserMove(orig, dest, chess, bestMoveUci),
+          after: (orig, dest) => handleUserMove(orig, dest),
         },
       },
       premovable: { enabled: false },
@@ -175,66 +192,110 @@ export function mountPuzzles(main, S) {
     });
   }
 
-  function handleUserMove(orig, dest, chess, expectedUci) {
+  function handleUserMove(orig, dest) {
+    if (!currentChess) return;
+
+    const turnColor = currentChess.turn() === 'w' ? 'white' : 'black';
+    let expectedUci = '';
+    if (activeTab === 'lichess') {
+      expectedUci = currentLichessPuzzle && currentLichessPuzzle.solution ? currentLichessPuzzle.solution[currentLichessPly] : '';
+    } else {
+      const p = blunders[currentPuzzleIndex];
+      expectedUci = p ? p.best : '';
+    }
+
+    // Determine pawn promotion
+    const piece = currentChess.get(orig);
+    const isPawn = piece && piece.type === 'p';
+    const isPromoRank = (piece && piece.color === 'w' && dest[1] === '8') || (piece && piece.color === 'b' && dest[1] === '1');
     let promotion = 'q';
-    const isPawn = chess.get(orig) && chess.get(orig).type === 'p';
-    const isPromoRank = dest[1] === '8' || dest[1] === '1';
     if (isPawn && isPromoRank) {
       if (expectedUci && expectedUci.length === 5) {
         promotion = expectedUci[4];
       }
     }
 
-    const moveUci = orig + dest + (isPawn && isPromoRank ? promotion : '');
-    const isCorrect = expectedUci && moveUci.startsWith(expectedUci.slice(0, 4));
+    // Check legality and execute move in chess.js
+    const legalMove = currentChess.move({ from: orig, to: dest, promotion });
+    if (!legalMove) {
+      // Revert if illegal according to chess rules
+      if (cg) cg.set({ fen: currentChess.fen() });
+      return;
+    }
+
+    // CRITICAL: Update board so the played piece STAYS on destination square
+    const inCheck = currentChess.inCheck();
+    if (cg) {
+      cg.set({
+        fen: currentChess.fen(),
+        lastMove: [orig, dest],
+        check: inCheck ? (currentChess.turn() === 'w' ? 'white' : 'black') : false,
+      });
+    }
+
+    // Validate played move against puzzle solution
+    const playedUci = orig + dest + (legalMove.promotion || '');
+    const isCorrect = expectedUci && (playedUci === expectedUci || playedUci.startsWith(expectedUci.slice(0, 4)));
 
     if (activeTab === 'lichess') {
       const p = currentLichessPuzzle;
       if (isCorrect) {
-        chess.move({ from: orig, to: dest, promotion });
         currentLichessPly++;
-        const nextOpponentMove = p.solution[currentLichessPly];
+        const nextOpponentMove = p.solution ? p.solution[currentLichessPly] : null;
 
         if (nextOpponentMove) {
           // Play opponent reply
-          statusMessage = 'Good move! Keep going…';
+          statusMessage = '✓ Good move! Keep going…';
           statusType = 'info';
           updateStatus();
+          if (cg) cg.set({ movable: { dests: new Map() } }); // lock during opponent move
+
           setTimeout(() => {
-            chess.move({
+            currentChess.move({
               from: nextOpponentMove.slice(0, 2),
               to: nextOpponentMove.slice(2, 4),
               promotion: nextOpponentMove[4] || undefined,
             });
             currentLichessPly++;
-            const nextBest = p.solution[currentLichessPly];
-            cg.set({
-              fen: chess.fen(),
-              turnColor: chess.turn() === 'w' ? 'white' : 'black',
-              movable: {
-                color: chess.turn() === 'w' ? 'white' : 'black',
-                dests: toDests(chess),
-                events: {
-                  after: (o, d) => handleUserMove(o, d, chess, nextBest),
+            const opponentInCheck = currentChess.inCheck();
+
+            if (cg) {
+              cg.set({
+                fen: currentChess.fen(),
+                lastMove: [nextOpponentMove.slice(0, 2), nextOpponentMove.slice(2, 4)],
+                check: opponentInCheck ? (currentChess.turn() === 'w' ? 'white' : 'black') : false,
+                movable: {
+                  color: turnColor,
+                  dests: toDests(currentChess),
+                  showDests: true,
+                  events: {
+                    after: (o, d) => handleUserMove(o, d),
+                  },
                 },
-              },
-            });
-          }, 350);
+              });
+            }
+          }, 400);
         } else {
-          // Puzzle completed!
+          // Lichess puzzle completely solved!
+          isSolved = true;
+          isMoveAttempted = false;
           statusMessage = '★ Puzzle Solved! Excellent calculation!';
           statusType = 'success';
           pState.streak++;
           if (pState.streak > pState.bestStreak) pState.bestStreak = pState.streak;
           recordPuzzleAttempt(`lichess_${p.id}`, true, { theme: (p.themes || [])[0], rating: p.rating });
+          if (cg) cg.set({ movable: { dests: new Map() } });
           updateStatus();
         }
       } else {
-        statusMessage = '✕ Incorrect move. Try again!';
+        // Incorrect move
+        isMoveAttempted = true;
+        isSolved = false;
+        statusMessage = '✕ Incorrect move. That is not the solution. Try again!';
         statusType = 'error';
         recordPuzzleAttempt(`lichess_${p.id}`, false, { theme: (p.themes || [])[0], rating: p.rating });
+        if (cg) cg.set({ movable: { dests: new Map() } }); // lock board in wrong position until retry
         updateStatus();
-        setTimeout(() => setupBoard(), 600);
       }
       return;
     }
@@ -242,18 +303,23 @@ export function mountPuzzles(main, S) {
     // Blunder puzzle
     const puzzle = blunders[currentPuzzleIndex];
     if (isCorrect) {
-      statusMessage = `★ Correct! ${puzzle.bestSan || moveUci} was the winning move!`;
+      isSolved = true;
+      isMoveAttempted = false;
+      statusMessage = `★ Correct! ${puzzle.bestSan || playedUci} was the winning move!`;
       statusType = 'success';
       recordPuzzleAttempt(puzzle.id, true, { theme: puzzle.phase, source: 'blunder' });
       puzzle.solved = true;
+      if (cg) cg.set({ movable: { dests: new Map() } });
       updateStatus();
-      cg.set({ movable: { dests: new Map() } });
     } else {
-      statusMessage = '✕ That wasn\'t the best move. Try again or check hint!';
+      // Incorrect move: move remains visible on the board, user can click retry
+      isMoveAttempted = true;
+      isSolved = false;
+      statusMessage = '✕ That was not the best move. Try again or check hint!';
       statusType = 'error';
       recordPuzzleAttempt(puzzle.id, false, { theme: puzzle.phase, source: 'blunder' });
+      if (cg) cg.set({ movable: { dests: new Map() } });
       updateStatus();
-      setTimeout(() => setupBoard(), 600);
     }
   }
 
@@ -262,6 +328,14 @@ export function mountPuzzles(main, S) {
     if (sb) {
       sb.className = `status-msg ${statusType}`;
       sb.textContent = statusMessage;
+    }
+    const inlineRetry = $('#retry-btn-inline');
+    if (inlineRetry) {
+      inlineRetry.style.display = isMoveAttempted && !isSolved ? 'inline-block' : 'none';
+    }
+    const actionsRetry = $('#retry-btn-actions');
+    if (actionsRetry) {
+      actionsRetry.style.display = isMoveAttempted && !isSolved ? 'inline-block' : 'none';
     }
     const badge = main.querySelector('.streak-badge');
     if (badge) {
@@ -274,6 +348,8 @@ export function mountPuzzles(main, S) {
     statusMessage = 'Loading tactical puzzle…';
     statusType = 'info';
     currentLichessPly = 0;
+    isMoveAttempted = false;
+    isSolved = false;
     hintShown = false;
     answerShown = false;
     renderShell();
@@ -315,6 +391,8 @@ export function mountPuzzles(main, S) {
       activeTab = tabBtn.dataset.tab;
       statusMessage = '';
       statusType = '';
+      isMoveAttempted = false;
+      isSolved = false;
       hintShown = false;
       answerShown = false;
       if (activeTab === 'lichess') {
@@ -331,6 +409,8 @@ export function mountPuzzles(main, S) {
       currentPuzzleIndex = 0;
       statusMessage = '';
       statusType = '';
+      isMoveAttempted = false;
+      isSolved = false;
       hintShown = false;
       answerShown = false;
       return mountPuzzles(main, S);
@@ -340,9 +420,24 @@ export function mountPuzzles(main, S) {
     if (!actBtn) return;
     const act = actBtn.dataset.act;
 
-    if (act === 'next') {
+    if (act === 'retry') {
+      // Restore puzzle starting position
+      if (puzzleStartingFen) {
+        currentChess = new Chess(puzzleStartingFen);
+        currentLichessPly = 0;
+        isMoveAttempted = false;
+        statusMessage = 'Try another move';
+        statusType = '';
+        const turnColor = puzzleStartingFen.split(' ')[1] === 'w' ? 'white' : 'black';
+        renderInteractiveBoard(turnColor);
+        if (cg) cg.setAutoShapes([]);
+        updateStatus();
+      }
+    } else if (act === 'next') {
       statusMessage = '';
       statusType = '';
+      isMoveAttempted = false;
+      isSolved = false;
       hintShown = false;
       answerShown = false;
       if (activeTab === 'lichess') {
@@ -355,14 +450,14 @@ export function mountPuzzles(main, S) {
       hintShown = true;
       let bestMove = '';
       if (activeTab === 'lichess' && currentLichessPuzzle) {
-        bestMove = currentLichessPuzzle.solution[currentLichessPly] || '';
+        bestMove = (currentLichessPuzzle.solution && currentLichessPuzzle.solution[currentLichessPly]) || '';
       } else if (blunders[currentPuzzleIndex]) {
         bestMove = blunders[currentPuzzleIndex].best;
       }
       if (bestMove && cg) {
         const orig = bestMove.slice(0, 2);
         cg.setAutoShapes([{ orig, brush: 'paleGreen' }]);
-        statusMessage = `💡 Hint: Focus on the piece on ${orig.toUpperCase()}`;
+        statusMessage = `💡 Hint: Move the piece on ${orig.toUpperCase()}`;
         statusType = 'info';
         updateStatus();
       }
@@ -371,12 +466,16 @@ export function mountPuzzles(main, S) {
       let bestMove = '';
       let bestSan = '';
       if (activeTab === 'lichess' && currentLichessPuzzle) {
-        bestMove = currentLichessPuzzle.solution[currentLichessPly] || '';
+        bestMove = (currentLichessPuzzle.solution && currentLichessPuzzle.solution[currentLichessPly]) || '';
       } else if (blunders[currentPuzzleIndex]) {
         bestMove = blunders[currentPuzzleIndex].best;
         bestSan = blunders[currentPuzzleIndex].bestSan;
       }
-      if (bestMove && cg) {
+      if (bestMove && cg && puzzleStartingFen) {
+        // Reset to starting position to show clear answer arrow
+        currentChess = new Chess(puzzleStartingFen);
+        const turnColor = puzzleStartingFen.split(' ')[1] === 'w' ? 'white' : 'black';
+        renderInteractiveBoard(turnColor);
         const orig = bestMove.slice(0, 2);
         const dest = bestMove.slice(2, 4);
         cg.setAutoShapes([{ orig, dest, brush: 'green' }]);
@@ -393,4 +492,3 @@ export function mountPuzzles(main, S) {
 
   renderShell();
 }
-

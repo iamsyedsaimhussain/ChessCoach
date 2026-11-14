@@ -307,6 +307,7 @@ export function mountLessons(main, S) {
         free: false,
         color: turnColor,
         dests,
+        showDests: true,
         events: {
           after: (orig, dest) => handleMove(orig, dest, chess),
         },
